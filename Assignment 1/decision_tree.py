@@ -68,6 +68,13 @@ def entropy(y):
         entropy += (-counts[i]/total)*np.log2(counts[i]/total)
     return entropy
 
+def probability_entropy(x):
+    if(x == 1):
+        return 1
+    if(x == 0):
+        return 0
+    entropy = - x * np.log2( x ) - ( 1 - x ) * np.log2( 1 - x )
+    return entropy
 
 def mutual_information(x, y):
     """
@@ -79,15 +86,23 @@ def mutual_information(x, y):
     """
 
     # INSERT YOUR CODE HERE
-    raise Exception('Function not yet implemented!')
-    # totalSet = entropy(y)
-    #
-    # values, counts= np.unique( x, return_counts=True )
-    #
-    # Weighted_Entropy = np.sum([(counts[i]/np.sum(counts)) * entropy(partion(x)) for i in range(len(vals))])
-    # # weightedSet =
-    # # info = totalSet - weightedSet
-    # return info
+    totalSet = entropy(y)
+    # get dictionarys of vectors
+    Ydict = partition(y)
+    Xdict = partition(x)
+    Ypositive = Ydict[1]
+    values, counts = np.unique( x, return_counts=True )
+    total_count = np.sum(counts)
+    weightedSet = 0
+    for i in range( len(Xdict) ):
+        # get probabilty by measuring how many of the branch overlap with y, and dividing by the total
+        # numerator = length of the values[i] array that overlaps with y==1 at those positions
+        # denomenator = counts[i] since we are in the subset
+        prob = len( list( set(Xdict[values[i]]) & set(Ypositive) ) ) / counts[i]
+        weightedSet += ( counts[i] / total_count ) * probability_entropy(prob)
+
+    info = totalSet - weightedSet
+    return info
 
 
 def id3(x, y, attribute_value_pairs=None, depth=0, max_depth=5):
@@ -193,12 +208,18 @@ if __name__ == '__main__':
     M = np.genfromtxt('data/monks-1.train', missing_values=0, skip_header=0, delimiter=',', dtype=int)
     ytrn = M[:, 0]
     xtrn = M[:, 1:]
-    value = entropy( ytrn )
-    print(value)
+    # value = entropy( mine )
+    # print(value)
     x = M[:, 1]
-    dict = partition(x)
-    print("\n")
-    print(dict)
+    # dict = partition(x)
+    # print("\n")
+    # print(dict)
+    # print("\n")
+    x = M[:, 3]
+    for i in range ( 1, 7 ):
+        info = mutual_information(M[:, i],ytrn)
+        print("\n{} mutual info gain: ".format(i))
+        print(info)
 
     # # Load the test data
     # M = np.genfromtxt('data/monks-1.test', missing_values=0, skip_header=0, delimiter=',', dtype=int)
