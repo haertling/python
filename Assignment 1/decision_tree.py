@@ -40,7 +40,17 @@ def partition(x):
     """
 
     # INSERT YOUR CODE HERE
+    values = np.unique ( x )
+    size = len( values )
+    dictionary = {values[k]:[] for k in range(size) }
+    # dictionary = {}
+    for i in range( len(x) ):
+        for j in range( size ):
+            if( x[i] == values[j] ):
+                dictionary[values[j]].append(i)
+                break
 
+    return dictionary
 
 
 def entropy(y):
@@ -51,7 +61,12 @@ def entropy(y):
     """
 
     # INSERT YOUR CODE HERE
-    raise Exception('Function not yet implemented!')
+    values, counts = np.unique (  y, return_counts=True )
+    total = np.sum( counts )
+    entropy = 0
+    for i in range(len(counts)):
+        entropy += (-counts[i]/total)*np.log2(counts[i]/total)
+    return entropy
 
 
 def mutual_information(x, y):
@@ -65,6 +80,14 @@ def mutual_information(x, y):
 
     # INSERT YOUR CODE HERE
     raise Exception('Function not yet implemented!')
+    # totalSet = entropy(y)
+    #
+    # values, counts= np.unique( x, return_counts=True )
+    #
+    # Weighted_Entropy = np.sum([(counts[i]/np.sum(counts)) * entropy(partion(x)) for i in range(len(vals))])
+    # # weightedSet =
+    # # info = totalSet - weightedSet
+    # return info
 
 
 def id3(x, y, attribute_value_pairs=None, depth=0, max_depth=5):
@@ -134,8 +157,8 @@ def compute_error(y_true, y_pred):
     # INSERT YOUR CODE HERE
     # loop through the sum
     sum = 0
-    for x in y_true
-        if y_true[x] != y_pred[x]
+    for x in range(len(y_true)):
+        if y_true[x] != y_pred[x]:
             sum+=1
     return ( (1/n) * sum )
 
@@ -167,21 +190,27 @@ def visualize(tree, depth=0):
 
 if __name__ == '__main__':
     # Load the training data
-    M = np.genfromtxt('./monks-1.train', missing_values=0, skip_header=0, delimiter=',', dtype=int)
+    M = np.genfromtxt('data/monks-1.train', missing_values=0, skip_header=0, delimiter=',', dtype=int)
     ytrn = M[:, 0]
-    Xtrn = M[:, 1:]
+    xtrn = M[:, 1:]
+    value = entropy( ytrn )
+    print(value)
+    x = M[:, 1]
+    dict = partition(x)
+    print("\n")
+    print(dict)
 
-    # Load the test data
-    M = np.genfromtxt('./monks-1.test', missing_values=0, skip_header=0, delimiter=',', dtype=int)
-    ytst = M[:, 0]
-    Xtst = M[:, 1:]
-
-    # Learn a decision tree of depth 3
-    decision_tree = id3(Xtrn, ytrn, max_depth=3)
-    visualize(decision_tree)
-
-    # Compute the test error
-    y_pred = [predict_example(x, decision_tree) for x in Xtst]
-    tst_err = compute_error(ytst, y_pred)
-
-    print('Test Error = {0:4.2f}%.'.format(tst_err * 100))
+    # # Load the test data
+    # M = np.genfromtxt('data/monks-1.test', missing_values=0, skip_header=0, delimiter=',', dtype=int)
+    # ytst = M[:, 0]
+    # Xtst = M[:, 1:]
+    #
+    # # Learn a decision tree of depth 3
+    # decision_tree = id3(xtrn, ytrn, max_depth=3)
+    # visualize(decision_tree)
+    #
+    # # Compute the test error
+    # y_pred = [predict_example(x, decision_tree) for x in Xtst]
+    # tst_err = compute_error(ytst, y_pred)
+    #
+    # print('Test Error = {0:4.2f}%.'.format(tst_err * 100))
