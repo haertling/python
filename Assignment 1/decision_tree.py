@@ -87,7 +87,7 @@ def mutual_information(x, y):
 
     # INSERT YOUR CODE HERE
     totalSet = entropy(y)
-    # get dictionarys of vectors
+    # get dictionaries of vectors
     Ydict = partition(y)
     Xdict = partition(x)
     Ypositive = Ydict[1]
@@ -95,7 +95,6 @@ def mutual_information(x, y):
     total_count = np.sum(counts)
     weightedSet = 0
     for i in range( len(Xdict) ):
-        # get probabilty by measuring how many of the branch overlap with y, and dividing by the total
         # numerator = length of the values[i] array that overlaps with y==1 at those positions
         # denomenator = counts[i] since we are in the subset
         prob = len( list( set(Xdict[values[i]]) & set(Ypositive) ) ) / counts[i]
@@ -104,6 +103,14 @@ def mutual_information(x, y):
     info = totalSet - weightedSet
     return info
 
+def pairs( matrix ):
+    rows, cols = matrix.shape
+    attribute_value_pairs = []
+    for i in range( cols ):
+        values = np.unique ( matrix[:, i] )
+        for j in range( len( values ) ):
+            attribute_value_pairs.append((i, values[j]))
+    return attribute_value_pairs
 
 def id3(x, y, attribute_value_pairs=None, depth=0, max_depth=5):
     """
@@ -147,8 +154,14 @@ def id3(x, y, attribute_value_pairs=None, depth=0, max_depth=5):
     """
 
     # INSERT YOUR CODE HERE. NOTE: THIS IS A RECURSIVE FUNCTION.
-    raise Exception('Function not yet implemented!')
-
+    # attribute_value_pairs = pairs(x)
+    # # 1. If the entire set of labels (y) is pure (all y = only 0 or only 1), then return that label
+    # if len(np.unique( y )) <= 1:
+    #     return np.unique( y )[0]
+    # # 2. If the set of attribute-value pairs is empty (there is nothing to split on), then return the most common value of y (majority label)
+    # elif len(x) == 0:
+    #     return
+    return 0
 
 def predict_example(x, tree):
     """
@@ -208,25 +221,26 @@ if __name__ == '__main__':
     M = np.genfromtxt('data/monks-1.train', missing_values=0, skip_header=0, delimiter=',', dtype=int)
     ytrn = M[:, 0]
     xtrn = M[:, 1:]
+    test = pairs(xtrn)
     # value = entropy( mine )
     # print(value)
-    x = M[:, 1]
+    # x = M[:, 1]
     # dict = partition(x)
     # print("\n")
     # print(dict)
     # print("\n")
-    x = M[:, 3]
-    for i in range ( 1, 7 ):
-        info = mutual_information(M[:, i],ytrn)
-        print("\n{} mutual info gain: ".format(i))
-        print(info)
+    # x = M[:, 3]
+    # for i in range ( 1, 7 ):
+    #     info = mutual_information(M[:, i],ytrn)
+    #     print("\n{} mutual info gain: ".format(i))
+    #     print(info)
 
     # # Load the test data
     # M = np.genfromtxt('data/monks-1.test', missing_values=0, skip_header=0, delimiter=',', dtype=int)
     # ytst = M[:, 0]
     # Xtst = M[:, 1:]
     #
-    # # Learn a decision tree of depth 3
+    # Learn a decision tree of depth 3
     # decision_tree = id3(xtrn, ytrn, max_depth=3)
     # visualize(decision_tree)
     #
