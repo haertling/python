@@ -68,6 +68,21 @@ def entropy(y):
         entropy += (-counts[i]/total)*np.log2(counts[i]/total)
     return entropy
 
+def value_entropy( x, y ):
+    Ydict = partition(y)
+    Xdict = partition(x)
+    Ypositive = Ydict[1]
+    values, counts = np.unique( x, return_counts=True )
+    total_count = np.sum(counts)
+    entropy = []
+    for i in range( len(Xdict) ):
+        # numerator = length of the values[i] array that overlaps with y==1 at those positions
+        # denomenator = counts[i] since we are in the subset
+        prob = len( list( set(Xdict[values[i]]) & set(Ypositive) ) ) / counts[i]
+        entropy.append(( counts[i] / total_count ) * probability_entropy(prob))
+        # print("value {} = {}".format( i, entropy[i]))
+    return entropy
+
 def probability_entropy(x):
     if(x == 1):
         return 1
@@ -87,30 +102,60 @@ def mutual_information(x, y):
 
     # INSERT YOUR CODE HERE
     totalSet = entropy(y)
-    # get dictionaries of vectors
-    Ydict = partition(y)
-    Xdict = partition(x)
-    Ypositive = Ydict[1]
-    values, counts = np.unique( x, return_counts=True )
-    total_count = np.sum(counts)
-    weightedSet = 0
-    for i in range( len(Xdict) ):
-        # numerator = length of the values[i] array that overlaps with y==1 at those positions
-        # denomenator = counts[i] since we are in the subset
-        prob = len( list( set(Xdict[values[i]]) & set(Ypositive) ) ) / counts[i]
-        weightedSet += ( counts[i] / total_count ) * probability_entropy(prob)
-
+    weightedSet = np.sum(value_entropy( x, y ))
     info = totalSet - weightedSet
     return info
 
 def pairs( matrix ):
     rows, cols = matrix.shape
     attribute_value_pairs = []
-    for i in range( cols ):
+    for i in range( 1, cols ):
         values = np.unique ( matrix[:, i] )
         for j in range( len( values ) ):
             attribute_value_pairs.append((i, values[j]))
     return attribute_value_pairs
+
+def find_value(x , pos):
+
+    values = np.unique( x )
+    value = values[pos]
+    return value
+
+def split_set( x, y, value ,feature, bool):
+    Ydict = partition(y)
+    Xdict = partition( x[:, feature] )
+    values, counts = np.unique( x[:, feature], return_counts=True )
+
+    if( bool == False ):
+        yes_values = Xdict[value]
+    if( bool == True ):
+        no_values = []
+        for i in range( len( values ) ):
+            if( values[i] != value ):
+                no_values += Xdict[values[i]]
+        # print("no values = {}".format(no_values))
+        no_values.sort()
+        # print("no values = {}".format(no_values))
+    copy_y = y
+    copy_x = x
+    if( bool == False ):
+        for pos in range( len( yes_values ) ):
+            copy_y = np.delete( copy_y , yes_values[pos] - pos, 0)
+            copy_x = np.delete( copy_x , yes_values[pos] - pos, 0)
+        sub_y = copy_y
+        sub_x = copy_x
+        # print("left y\n{}".format(sub_y))
+        # print("left x\n{}".format(sub_x))
+    if( bool == True ):
+        for pos in range( len( no_values ) ):
+            # print("position = {}\nindex={}".format(no_values[pos], pos))
+            copy_y = np.delete( copy_y , no_values[pos] - pos, 0)
+            copy_x = np.delete( copy_x , no_values[pos] - pos, 0)
+        sub_y = copy_y
+        sub_x = copy_x
+        # print("right y\n{}".format(sub_y))
+        # print("right x\n{}".format(sub_x))
+    return sub_x, sub_y
 
 def id3(x, y, attribute_value_pairs=None, depth=0, max_depth=5):
     """
@@ -154,14 +199,57 @@ def id3(x, y, attribute_value_pairs=None, depth=0, max_depth=5):
     """
 
     # INSERT YOUR CODE HERE. NOTE: THIS IS A RECURSIVE FUNCTION.
-    # attribute_value_pairs = pairs(x)
-    # # 1. If the entire set of labels (y) is pure (all y = only 0 or only 1), then return that label
-    # if len(np.unique( y )) <= 1:
-    #     return np.unique( y )[0]
-    # # 2. If the set of attribute-value pairs is empty (there is nothing to split on), then return the most common value of y (majority label)
-    # elif len(x) == 0:
-    #     return
-    return 0
+    values, counts = np.unique( y, return_counts=True )
+    max_place = np.argmax(counts)
+    majority_label = values[max_place]
+    # print("y majority: {}".format(majority_label))
+    # 1. If the entire set of labels (y) is pure (all y = only 0 or only 1), then return that label
+    if len( values ) <= 1:
+        return values[0]
+    # 2. If the set of attribute-value pairs is empty (there is nothing to split on), then return the most common value of y (majority label)
+    elif len(attribute_value_pairs) == 0:
+        return majority_label
+    # 3. If the max_depth is reached (pre-pruning bias), then return the most common value of y (majority label)
+    elif depth == max_depth:
+        return majority_label
+    # start the tree
+    else:
+        # select best feature to split on
+        rows, cols = x.shape
+        attribute_list = []
+        for i in range( cols ):
+            attribute_list.append(mutual_information( x[:, i], y ))
+            # print("feature {} gain: {}".format( i+1, attribute_list[i] ))
+        best_attribute = np.argmax(attribute_list)
+        # print("best: {}".format(best_attribute+1))
+        value_of_best_features = value_entropy( x[:, best_attribute], y)
+        # print("{}".format(value_of_best_features))
+        best_value_location = np.argmin(value_of_best_features)
+
+        value_pair = find_value( x[:, best_attribute] , best_value_location )
+        # print("value of pair = {}".format(value_pair))
+        tree = {}
+        # print("attribute_value_pairs = \n{}".format(attribute_value_pairs))
+        # print("trying to remove pair( {}, {} )".format( best_attribute+1, value_pair ))
+        try:
+            attribute_value_pairs.remove((best_attribute+1,value_pair))
+        except:
+            pass
+        boolean = [ False, True ]
+        for i in range( 2 ):
+            # if( i == 1):
+            #     print("starting right tree")
+            x_subset, y_subset = split_set( x, y, value_pair, best_attribute, boolean[i] )
+            values, counts = np.unique( y_subset, return_counts=True )
+            if( len(values)  == 0 ):
+                return majority_label
+            tree[best_attribute+1, value_pair, boolean[i]] = {}
+            # print("tree = {}".format(tree))
+            # print(tree)
+            subtree = id3(x_subset, y_subset, attribute_value_pairs, depth+1, max_depth)
+            tree[best_attribute+1, value_pair, boolean[i]] = subtree
+        # print(tree)
+    return tree
 
 def predict_example(x, tree):
     """
@@ -172,7 +260,33 @@ def predict_example(x, tree):
     """
 
     # INSERT YOUR CODE HERE. NOTE: THIS IS A RECURSIVE FUNCTION.
-    raise Exception('Function not yet implemented!')
+    # print(tree.keys())
+    keys = list( tree.keys())
+    attribute = keys[0][0]
+    value = keys[0][1]
+    # print("attribute = {}\n".format(attribute))
+    if( x[attribute-1] == value ):# true
+        result = tree[keys[1]]
+    if( x[attribute-1] != value ):# false
+        result = tree[keys[0]]
+
+    if type( result ) is dict:
+        return predict_example( x, result )
+    else:
+        return result
+
+def getNodeCount( tree ):
+
+    keys = list(tree.keys())
+    # print(keys)
+    if type( tree ) is dict:
+        nodes = 1
+        if type( tree[keys[0]] ) is dict:
+            nodes += getNodeCount(tree[keys[0]])
+
+        if type( tree[keys[1]] ) is dict:
+            nodes += getNodeCount(tree[keys[1]])
+    return nodes
 
 
 def compute_error(y_true, y_pred):
@@ -185,11 +299,31 @@ def compute_error(y_true, y_pred):
     # INSERT YOUR CODE HERE
     # loop through the sum
     sum = 0
-    for x in range(len(y_true)):
+    n = len(y_true)
+    for x in range( n ):
         if y_true[x] != y_pred[x]:
             sum+=1
     return ( (1/n) * sum )
 
+def confusion_matrix( y_true, y_pred ):
+    n = len(y_true)
+    t_pos = 0
+    f_pos = 0
+    f_neg = 0
+    t_neg = 0
+    for x in range( n ):
+        if y_true[x] == y_pred[x]:
+            if y_pred[x] == 0:
+                t_neg += 1
+            if y_pred[x] == 1:
+                t_pos += 1
+        if y_true[x] != y_pred[x]:
+            if y_pred[x] == 0:
+                f_neg += 1
+            if y_pred[x] == 1:
+                f_pos += 1
+    print("true positive  = {} false negative = {}\nfalse positive = {}  true negative = {}\n".format(t_pos,f_neg,f_pos,t_neg))
+    return
 
 def visualize(tree, depth=0):
     """
@@ -218,34 +352,71 @@ def visualize(tree, depth=0):
 
 if __name__ == '__main__':
     # Load the training data
-    M = np.genfromtxt('data/monks-1.train', missing_values=0, skip_header=0, delimiter=',', dtype=int)
-    ytrn = M[:, 0]
-    xtrn = M[:, 1:]
-    test = pairs(xtrn)
-    # value = entropy( mine )
-    # print(value)
-    # x = M[:, 1]
-    # dict = partition(x)
-    # print("\n")
-    # print(dict)
-    # print("\n")
-    # x = M[:, 3]
-    # for i in range ( 1, 7 ):
-    #     info = mutual_information(M[:, i],ytrn)
-    #     print("\n{} mutual info gain: ".format(i))
-    #     print(info)
+    learning_curves = 0
+    Weak_Learners   = 0
+    scikit_learn    = 1
+    other_data_sets = 0
+    if( learning_curves == 1):
+        for j in range( 1, 4 ):
+            print("Starting monks-{}".format(j))
+            M = np.genfromtxt("data/monks-{}.train".format(j), missing_values=0, skip_header=0, delimiter=',', dtype=int)
+            ytrn = M[:, 0]
+            xtrn = M[:, 1:]
+            attribute_value_pairs = pairs(M)
 
-    # # Load the test data
-    # M = np.genfromtxt('data/monks-1.test', missing_values=0, skip_header=0, delimiter=',', dtype=int)
-    # ytst = M[:, 0]
-    # Xtst = M[:, 1:]
-    #
-    # Learn a decision tree of depth 3
-    # decision_tree = id3(xtrn, ytrn, max_depth=3)
-    # visualize(decision_tree)
-    #
-    # # Compute the test error
-    # y_pred = [predict_example(x, decision_tree) for x in Xtst]
-    # tst_err = compute_error(ytst, y_pred)
-    #
-    # print('Test Error = {0:4.2f}%.'.format(tst_err * 100))
+            # Load the test data
+            M = np.genfromtxt("data/monks-{}.test".format(j), missing_values=0, skip_header=0, delimiter=',', dtype=int)
+            ytst = M[:, 0]
+            Xtst = M[:, 1:]
+
+            for i in range( 1, 11):
+                # Learn a decision tree of depth 3
+                decision_tree = id3(xtrn, ytrn, attribute_value_pairs, max_depth=i)
+                # nodes = getNodeCount(decision_tree)
+                # visualize(decision_tree)
+
+                # Compute the test error
+                y_pred = [predict_example(x, decision_tree) for x in Xtst]
+                tst_err = compute_error(ytst, y_pred)
+                # confusion_matrix( ytst, y_pred )
+                print('Test Error = {0:4.2f}%.'.format(tst_err * 100))
+                # accuracy value
+                # print('{0:4.2f}%'.format(100-(tst_err * 100)))
+
+                # number of nodes in tree
+                # print('{}'.format(nodes))
+    if( Weak_Learners == 1 ):
+        M = np.genfromtxt("data/monks-1.train", missing_values=0, skip_header=0, delimiter=',', dtype=int)
+        ytrn = M[:, 0]
+        xtrn = M[:, 1:]
+
+        attribute_value_pairs = pairs(M)
+
+        # Load the test data
+        M = np.genfromtxt("data/monks-1.test", missing_values=0, skip_header=0, delimiter=',', dtype=int)
+        ytst = M[:, 0]
+        Xtst = M[:, 1:]
+
+        for i in range( 1, 3):
+            # Learn a decision tree of depth 3
+            decision_tree = id3(xtrn, ytrn, attribute_value_pairs, max_depth=i)
+            print("monks-1, depth = {}".format(i))
+            confusion_matrix( ytst, y_pred )
+
+    if( scikit_learn == 1 ):
+        from sklearn import tree
+        import graphviz
+        # Load the training data
+        M = np.genfromtxt("data/monks-1.train", missing_values=0, skip_header=0, delimiter=',', dtype=int)
+        ytrn = M[:, 0]
+        xtrn = M[:, 1:]
+        # Load the test data
+        M = np.genfromtxt("data/monks-1.test", missing_values=0, skip_header=0, delimiter=',', dtype=int)
+        ytst = M[:, 0]
+        Xtst = M[:, 1:]
+        # learn a tree
+        d_tree = tree.DecisionTreeClassifier()
+        decision_tree = d_tree.fit( xtrn, ytrn )
+        # visualize the tree
+        tree.plot_tree(decision_tree)
+        # report the tree and confusion matrix on the test set
