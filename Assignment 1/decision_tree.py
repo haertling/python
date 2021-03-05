@@ -404,8 +404,9 @@ if __name__ == '__main__':
             confusion_matrix( ytst, y_pred )
 
     if( scikit_learn == 1 ):
-        from sklearn import tree
+
         import graphviz
+        from sklearn import tree
         # Load the training data
         M = np.genfromtxt("data/monks-1.train", missing_values=0, skip_header=0, delimiter=',', dtype=int)
         ytrn = M[:, 0]
@@ -418,5 +419,8 @@ if __name__ == '__main__':
         d_tree = tree.DecisionTreeClassifier()
         decision_tree = d_tree.fit( xtrn, ytrn )
         # visualize the tree
-        tree.plot_tree(decision_tree)
+        dot_data = tree.export_graphviz( decision_tree, out_file=None )
+        graph = graphviz.Source(dot_data)
+        graph.render("monks-1")
         # report the tree and confusion matrix on the test set
+# $env:Path += ";c:\\users\\steven\\appdata\\local\\packages\\pythonsoftwarefoundation.python.3.7_qbz5n2kfra8p0\\localcache\\local-packages\\python37\\site-packages"
