@@ -353,9 +353,9 @@ def visualize(tree, depth=0):
 if __name__ == '__main__':
     # Load the training data
     learning_curves = 0
-    Weak_Learners   = 0
+    Weak_Learners   = 1
     scikit_learn    = 0
-    other_data_sets = 1
+    other_data_sets = 0
     if( learning_curves == 1):
         for j in range( 1, 4 ):
             print("Starting monks-{}".format(j))
@@ -400,6 +400,7 @@ if __name__ == '__main__':
         for i in range( 1, 3):
             # Learn a decision tree of depth 3
             decision_tree = id3(xtrn, ytrn, attribute_value_pairs, max_depth=i)
+            visualize(decision_tree)
             y_pred = [predict_example(x, decision_tree) for x in Xtst]
             print("monks-1, depth = {}".format(i))
             confusion_matrix( ytst, y_pred )
@@ -430,7 +431,9 @@ if __name__ == '__main__':
         tst_err = compute_error( ytst, prediction )
         print('Test Error = {0:4.2f}%.'.format(tst_err * 100))
 
-    if( other_data_sets == 1 ):
+    if (other_data_sets == 1):
+        import graphviz
+        from sklearn import tree
         M = np.genfromtxt("data/balance-scale.train", missing_values=0, skip_header=0, delimiter=',', dtype=int)
         ytrn = M[:, 0]
         xtrn = M[:, 1:]
@@ -442,12 +445,12 @@ if __name__ == '__main__':
         ytst = M[:, 0]
         Xtst = M[:, 1:]
 
-        for i in range( 1, 3):
+        for i in range(1, 3):
             # Learn a decision tree of depth 3
             decision_tree = id3(xtrn, ytrn, attribute_value_pairs, max_depth=i)
             y_pred = [predict_example(x, decision_tree) for x in Xtst]
             print("balance-scale, depth = {}".format(i))
-            confusion_matrix( ytst, y_pred )
+            confusion_matrix(ytst, y_pred)
         # learn a tree
         d_tree = tree.DecisionTreeClassifier()
         decision_tree = d_tree.fit(xtrn, ytrn)
@@ -457,6 +460,7 @@ if __name__ == '__main__':
         graph.render("balance-scale-training")
         # confusion matrix for test
         prediction = decision_tree.predict(Xtst)
-        confusion_matrix( ytst, prediction )
-        tst_err = compute_error( ytst, prediction )
+        print("library confusion matrix")
+        confusion_matrix(ytst, prediction)
+        tst_err = compute_error(ytst, prediction)
         print('Test Error = {0:4.2f}%.'.format(tst_err * 100))
