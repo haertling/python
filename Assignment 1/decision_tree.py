@@ -26,6 +26,11 @@
 # the package scikit-learn OR ANY OTHER machine learning package in THIS file.
 
 import numpy as np
+import graphviz
+from sklearn import tree
+from sklearn.ensemble import BaggingClassifier
+from sklearn.ensemble import AdaBoostClassifier
+import random
 
 
 def partition(x):
@@ -122,7 +127,6 @@ def find_value(x , pos):
     return value
 
 def split_set( x, y, value ,feature, bool):
-    Ydict = partition(y)
     Xdict = partition( x[:, feature] )
     values, counts = np.unique( x[:, feature], return_counts=True )
 
@@ -157,7 +161,7 @@ def split_set( x, y, value ,feature, bool):
         # print("right x\n{}".format(sub_x))
     return sub_x, sub_y
 
-def id3(x, y, attribute_value_pairs=None, depth=0, max_depth=5):
+def id3(x, y, attribute_value_pairs=None, depth=0, max_depth=5, boost=0):
     """
     Implements the classical ID3 algorithm given training data (x), training labels (y) and an array of
     attribute-value pairs to consider. This is a recursive algorithm that depends on three termination conditions
@@ -216,11 +220,13 @@ def id3(x, y, attribute_value_pairs=None, depth=0, max_depth=5):
     else:
         # select best feature to split on
         rows, cols = x.shape
+        # if( boost == 0 ):
         attribute_list = []
         for i in range( cols ):
             attribute_list.append(mutual_information( x[:, i], y ))
             # print("feature {} gain: {}".format( i+1, attribute_list[i] ))
         best_attribute = np.argmax(attribute_list)
+        # print(best_attribute)
         # print("best: {}".format(best_attribute+1))
         value_of_best_features = value_entropy( x[:, best_attribute], y)
         # print("{}".format(value_of_best_features))
@@ -249,7 +255,10 @@ def id3(x, y, attribute_value_pairs=None, depth=0, max_depth=5):
             subtree = id3(x_subset, y_subset, attribute_value_pairs, depth+1, max_depth)
             tree[best_attribute+1, value_pair, boolean[i]] = subtree
         # print(tree)
+    # if(boost == 0):
     return tree
+    # else:
+    #     return tree, attribute_value_pairs
 
 def predict_example(x, tree):
     """
@@ -322,8 +331,120 @@ def confusion_matrix( y_true, y_pred ):
                 f_neg += 1
             if y_pred[x] == 1:
                 f_pos += 1
-    print("true positive  = {} false negative = {}\nfalse positive = {}  true negative = {}\n".format(t_pos,f_neg,f_pos,t_neg))
+    print("true positive  = {} false negative = {}\nfalse positive = {}  true negative = {}".format(t_pos,f_neg,f_pos,t_neg))
     return
+
+def createSubSet( M , ratio):
+    n = round(len(M) * ratio)
+    rng = np.random.default_rng()
+    sample = rng.choice( M, size=n )
+    return sample
+
+def bagging( M, Test, max_depth, num_trees ):
+    # create bootstrap samples
+    ratio = .01
+    data = list()
+    decision_tree = list()
+    for i in range (num_trees):
+        subset = createSubSet( M , ratio )
+        data.append(subset)
+    # learn samples
+    for i in range (num_trees):
+        attribute_value_pairs = pairs(data[i])
+        # print(attribute_value_pairs)
+        y = data[i][:, 0]
+        x = data[i][:, 1:]
+        # print(y)
+        # print(x)
+        decision_tree.append(id3( x, y, attribute_value_pairs, max_depth=max_depth))
+        # visualize(decision_tree[i])
+    # output majority vote
+    ytst = Test[:, 0]
+    Xtst = Test[:, 1:]
+    # print(testData[1])
+    y_pred = list()
+    for tree in range(num_trees):
+        # visualize(decision_tree[tree])
+        y_pred.append([predict_example(x, decision_tree[tree]) for x in Xtst])
+        # print(len(y_pred[tree]))
+    a = np.empty(len(y_pred[1]))
+    for i in range (num_trees):
+        a += np.array(y_pred[i])
+        # print(a)
+    #     np.mean += y_pred[i]
+    y_pred_avg = np.round(a / num_trees)
+    # print(y_pred_avg)
+    confusion_matrix( ytst, y_pred_avg )
+    error = compute_error( ytst, y_pred_avg )
+    print('Test Error = {0:4.2f}%.\n'.format(error * 100))
+
+def predict_example_ensemble( x, h_ens ):
+    return 0
+
+def weightUpdate( pred, y, weights, alpha ):
+
+    for x in range (len(weights)):
+        if y[x] == pred[x]: #TRUE
+            weights[x] = weights[x] * np.exp(alpha)
+        if y[x] != pred[x]: #FALSE
+            weights[x] = weights[x] * np.exp(-alpha)
+    add = sum(weights)
+    weights = weights / add
+    return weights
+
+def newBoostSet( x, y, weights):
+    Set = np.insert(x, 0, y, axis=1)
+    NewSet = np.empty([6093, 22])
+    for i in range(len(Set)):
+        value = random.uniform(0,1)
+        temp = 0
+        j = 0
+        while(value > temp):
+            temp += weights[j]
+            j = j + 1
+        if(j>6092):
+            j = 6092
+        # print("value = {}, temp = {}, i = {}".format(value, temp, i))
+        NewSet[i] = Set[j]
+
+    y = NewSet[:, 0]
+    x = NewSet[:, 1:]
+    return x, y
+
+
+def boosting( trainData, testData, depth, bag_size):
+    y = trainData[:, 0]
+    x = trainData[:, 1:]
+    ytest = testData[:, 0]
+    xtest = testData[:, 1:]
+    weightsLength = len(x)
+    # np.set_printoptions(threshold=np.inf)
+
+    # print(weights)
+    tree = list()
+    errors = list()
+    alpha = list()
+    attribute_value_pairs = pairs(trainData)
+    for i in range(10): #bag_size
+        weights = np.full( weightsLength, 1 / weightsLength )
+
+        # learn
+
+        tree.append(id3( x, y, attribute_value_pairs, max_depth=depth, boost=1 ))
+        # calculate error
+        pred = [predict_example(loop, tree[i]) for loop in x]
+        errors.append(compute_error( y, pred ))
+        # calculate alpha
+        alpha.append( .5 * np.log2( (1-errors[i]) / errors[i] ) )
+        visualize(tree[i])
+        # print("errors = {}".format(errors[0]))
+        # print("alpha = {}".format(alpha[0]))
+        # change weights
+        weights = weightUpdate( pred, y, weights, alpha[i] )
+        print(weights)
+        x, y = newBoostSet( x, y, weights)
+    #final prediction of alpha[0]*pred(x,tree[0])+ ...
+
 
 def visualize(tree, depth=0):
     """
@@ -352,10 +473,15 @@ def visualize(tree, depth=0):
 
 if __name__ == '__main__':
     # Load the training data
-    learning_curves = 1
+    # JUMP TO MAIN
+    learning_curves = 0
     Weak_Learners   = 0
     scikit_learn    = 0
     other_data_sets = 0
+    bag             = 1
+    boost           = 0
+    scikitBag       = 1
+    scikitBoost     = 1
     if( learning_curves == 1):
         for j in range( 1, 4 ):
             print("Starting monks-{}".format(j))
@@ -406,8 +532,6 @@ if __name__ == '__main__':
             confusion_matrix( ytst, y_pred )
 
     if (scikit_learn == 1):
-        import graphviz
-        from sklearn import tree
 
         # Load the training data
         M = np.genfromtxt("data/monks-1.train", missing_values=0, skip_header=0, delimiter=',', dtype=int)
@@ -464,3 +588,126 @@ if __name__ == '__main__':
         confusion_matrix(ytst, prediction)
         tst_err = compute_error(ytst, prediction)
         print('Test Error = {0:4.2f}%.'.format(tst_err * 100))
+
+    if (bag == 1):
+        trainData = np.genfromtxt("data/mushroom.train", missing_values=0, skip_header=0, delimiter=',', dtype=int)
+        testData = np.genfromtxt("data/mushroom.test", missing_values=0, skip_header=0, delimiter=',', dtype=int)
+        depth = 3
+        bag_size = 10
+        print("bagging: depth={}, bag_size={}".format(depth,bag_size))
+        bagging( trainData, testData, depth, bag_size )
+        depth = 3
+        bag_size = 20
+        print("bagging: depth={}, bag_size={}".format(depth,bag_size))
+        bagging( trainData, testData, depth, bag_size )
+        depth = 5
+        bag_size = 10
+        print("bagging: depth={}, bag_size={}".format(depth,bag_size))
+        bagging( trainData, testData, depth, bag_size )
+        depth = 5
+        bag_size = 20
+        print("bagging: depth={}, bag_size={}".format(depth,bag_size))
+        bagging( trainData, testData, depth, bag_size )
+
+
+    if (boost == 1):
+        trainData = np.genfromtxt("data/mushroom.train", missing_values=0, skip_header=0, delimiter=',', dtype=int)
+        testData = np.genfromtxt("data/mushroom.test", missing_values=0, skip_header=0, delimiter=',', dtype=int)
+        # trainData = np.delete(trainData, 18, 1)
+        # testData = np.delete(testData, 18, 1)
+        depth = 1
+        bag_size = 20
+        boosting( trainData, testData, depth, bag_size)
+        #horribly broken
+        # main issue is the stump won't change from the first value it picks up
+
+    if (scikitBag == 1):
+        # Load the training data
+        train = np.genfromtxt("data/mushroom.train", missing_values=0, skip_header=0, delimiter=',', dtype=int)
+        ytrn = train[:, 0]
+        xtrn = train[:, 1:]
+        # Load the test data
+        test = np.genfromtxt("data/mushroom.test", missing_values=0, skip_header=0, delimiter=',', dtype=int)
+        ytest = test[:, 0]
+        xtest = test[:, 1:]
+        depth = 3
+        bag_size = 10
+        print("SCIKIT bagging: depth={}, bag_size={}".format(depth,bag_size))
+        sBag = BaggingClassifier( base_estimator=tree.DecisionTreeClassifier(max_depth=depth, max_features=1),
+                                  n_estimators=bag_size).fit(xtrn,ytrn)
+        prediction = sBag.predict(xtest)
+        confusion_matrix( ytest, prediction )
+        print('Test Error = {0:4.2f}%.\n'.format((compute_error( ytest, prediction) * 100)))
+        depth = 3
+        bag_size = 20
+        print("SCIKIT bagging: depth={}, bag_size={}".format(depth,bag_size))
+        sBag = BaggingClassifier( base_estimator=tree.DecisionTreeClassifier(max_depth=depth, max_features=1),
+                                  n_estimators=bag_size).fit(xtrn,ytrn)
+        prediction = sBag.predict(xtest)
+        confusion_matrix( ytest, prediction )
+        print('Test Error = {0:4.2f}%.\n'.format((compute_error( ytest, prediction) * 100)))
+        depth = 5
+        bag_size = 10
+        print("SCIKIT bagging: depth={}, bag_size={}".format(depth,bag_size))
+        sBag = BaggingClassifier( base_estimator=tree.DecisionTreeClassifier(max_depth=depth, max_features=1),
+                                  n_estimators=bag_size).fit(xtrn,ytrn)
+        prediction = sBag.predict(xtest)
+        confusion_matrix( ytest, prediction )
+        print('Test Error = {0:4.2f}%.\n'.format((compute_error( ytest, prediction) * 100)))
+        depth = 5
+        bag_size = 20
+        print("SCIKIT bagging: depth={}, bag_size={}".format(depth,bag_size))
+        sBag = BaggingClassifier( base_estimator=tree.DecisionTreeClassifier(max_depth=depth, max_features=1),
+                                  n_estimators=bag_size).fit(xtrn,ytrn)
+        prediction = sBag.predict(xtest)
+        confusion_matrix( ytest, prediction )
+        print('Test Error = {0:4.2f}%.\n'.format((compute_error( ytest, prediction) * 100)))
+
+    if (scikitBoost == 1):
+        # Load the training data
+        train = np.genfromtxt("data/mushroom.train", missing_values=0, skip_header=0, delimiter=',', dtype=int)
+        ytrn = train[:, 0]
+        xtrn = train[:, 1:]
+        # Load the test data
+        test = np.genfromtxt("data/mushroom.test", missing_values=0, skip_header=0, delimiter=',', dtype=int)
+        ytest = test[:, 0]
+        xtest = test[:, 1:]
+        depth = 1
+        bag_size = 20
+        print("SCIKIT Boosting: depth={}, bag_size={}".format(depth,bag_size))
+        sBoost = AdaBoostClassifier(base_estimator=tree.DecisionTreeClassifier(max_depth=depth, max_features=1),
+                                    n_estimators=bag_size)
+        sBoost.fit(xtrn,ytrn)
+        prediction = sBoost.predict(xtest)
+        confusion_matrix( ytest, prediction )
+        print('Test Error = {0:4.2f}%.\n'.format((compute_error( ytest, prediction) * 100)))
+
+        depth = 1
+        bag_size = 40
+        print("SCIKIT Boosting: depth={}, bag_size={}".format(depth,bag_size))
+        sBoost = AdaBoostClassifier(base_estimator=tree.DecisionTreeClassifier(max_depth=depth, max_features=1),
+                                    n_estimators=bag_size)
+        sBoost.fit(xtrn,ytrn)
+        prediction = sBoost.predict(xtest)
+        confusion_matrix( ytest, prediction )
+        print('Test Error = {0:4.2f}%.\n'.format((compute_error( ytest, prediction) * 100)))
+
+        depth = 2
+        bag_size = 20
+        print("SCIKIT Boosting: depth={}, bag_size={}".format(depth,bag_size))
+        sBoost = AdaBoostClassifier(base_estimator=tree.DecisionTreeClassifier(max_depth=depth, max_features=1),
+                                    n_estimators=bag_size)
+        sBoost.fit(xtrn,ytrn)
+        prediction = sBoost.predict(xtest)
+        confusion_matrix( ytest, prediction )
+        print('Test Error = {0:4.2f}%.\n'.format((compute_error( ytest, prediction) * 100)))
+
+        depth = 2
+        bag_size = 40
+        print("SCIKIT Boosting: depth={}, bag_size={}".format(depth,bag_size))
+        sBoost = AdaBoostClassifier(base_estimator=tree.DecisionTreeClassifier(max_depth=depth, max_features=1),
+                                    n_estimators=bag_size)
+        sBoost.fit(xtrn,ytrn)
+        prediction = sBoost.predict(xtest)
+        confusion_matrix( ytest, prediction )
+        print('Test Error = {0:4.2f}%.\n'.format((compute_error( ytest, prediction) * 100)))
