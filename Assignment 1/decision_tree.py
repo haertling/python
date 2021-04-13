@@ -220,13 +220,11 @@ def id3(x, y, attribute_value_pairs=None, depth=0, max_depth=5, boost=0):
     else:
         # select best feature to split on
         rows, cols = x.shape
-        # if( boost == 0 ):
         attribute_list = []
         for i in range( cols ):
             attribute_list.append(mutual_information( x[:, i], y ))
             # print("feature {} gain: {}".format( i+1, attribute_list[i] ))
         best_attribute = np.argmax(attribute_list)
-        # print(best_attribute)
         # print("best: {}".format(best_attribute+1))
         value_of_best_features = value_entropy( x[:, best_attribute], y)
         # print("{}".format(value_of_best_features))
@@ -255,10 +253,7 @@ def id3(x, y, attribute_value_pairs=None, depth=0, max_depth=5, boost=0):
             subtree = id3(x_subset, y_subset, attribute_value_pairs, depth+1, max_depth)
             tree[best_attribute+1, value_pair, boolean[i]] = subtree
         # print(tree)
-    # if(boost == 0):
     return tree
-    # else:
-    #     return tree, attribute_value_pairs
 
 def predict_example(x, tree):
     """
@@ -297,6 +292,16 @@ def getNodeCount( tree ):
             nodes += getNodeCount(tree[keys[1]])
     return nodes
 
+def boosting_error(y_true, y_pred, weights):
+    sum = 0
+    total = 0
+    n = len(y_true)
+    for x in range( n ):
+        if y_true[x] != y_pred[x]:
+            sum += weights[x]
+        total += weights[x]
+    print("sum = {}, total = {}, return = {}".format(sum, total, sum/total))
+    return ( sum/total )
 
 def compute_error(y_true, y_pred):
     """
@@ -378,16 +383,40 @@ def bagging( M, Test, max_depth, num_trees ):
     error = compute_error( ytst, y_pred_avg )
     print('Test Error = {0:4.2f}%.\n'.format(error * 100))
 
-def predict_example_ensemble( x, h_ens ):
-    return 0
+def predict_example_ensemble( x, trees, alpha ):
+    prediction = list()
+    for tree in range(len(trees)):
+        temp = trees[tree].predict(x)
+        for i in range(len(temp)):
+            if(temp[i] == 0):
+                temp[i] = -1
+        prediction.append( trees[tree].predict(x) * alpha[tree])
+        # print(prediction[tree])
+    beast = np.empty(len(prediction[0]))
+    for tree in range(len(trees)):
+        beast += prediction[tree]
+    ens_pred = np.empty(len(prediction[0]))
+    for i in range(len(beast)):
+        if(beast[i] > 0 ):
+            ens_pred[i] = 1
+        else:
+            ens_pred[i] = 0
+    # print("{}".format(ens_pred))
+    return(ens_pred)
+    # sum = np.empty(len(alpha))
+    # for j in range(len(alpha)):
+    #     sum += alpha[j] * trees[j].predict(x)
+    # # print("sum = {}\nsign = {}".format(sum, np.sign(sum)))
+    # return np.sign(sum)
+
 
 def weightUpdate( pred, y, weights, alpha ):
 
     for x in range (len(weights)):
         if y[x] == pred[x]: #TRUE
-            weights[x] = weights[x] * np.exp(alpha)
+            weights[x] = weights[x]
         if y[x] != pred[x]: #FALSE
-            weights[x] = weights[x] * np.exp(-alpha)
+            weights[x] = weights[x] * np.exp(alpha)
     add = sum(weights)
     weights = weights / add
     return weights
@@ -421,29 +450,43 @@ def boosting( trainData, testData, depth, bag_size):
     # np.set_printoptions(threshold=np.inf)
 
     # print(weights)
-    tree = list()
+    trees = list()
     errors = list()
     alpha = list()
     attribute_value_pairs = pairs(trainData)
-    for i in range(10): #bag_size
-        weights = np.full( weightsLength, 1 / weightsLength )
-
+    weights = np.full( weightsLength, 1 / weightsLength )
+    for i in range(bag_size): #bag_size
         # learn
-
-        tree.append(id3( x, y, attribute_value_pairs, max_depth=depth, boost=1 ))
+        d_tree = tree.DecisionTreeClassifier(max_depth=depth, max_features=1)
+        trees.append(d_tree.fit(x, y, sample_weight=weights))
+        # tree.append(id3( x, y, attribute_value_pairs, max_depth=depth, weights=weights ))
         # calculate error
-        pred = [predict_example(loop, tree[i]) for loop in x]
-        errors.append(compute_error( y, pred ))
+
+        # pred = [predict_example(loop, tree[i]) for loop in x]
+        prediction = trees[i].predict(x)
+        errors.append(weights[(prediction != y)].sum())
+        # print(errors[i])
+        # errors.append(boosting_error( y, prediction , weights))
         # calculate alpha
-        alpha.append( .5 * np.log2( (1-errors[i]) / errors[i] ) )
-        visualize(tree[i])
+        alpha.append( .5 * np.log( ( 1-errors[i] ) / errors[i] ) )
+        # print(errors[i])
+        # print(alpha[i])
+        # visualize(tree[i])
         # print("errors = {}".format(errors[0]))
         # print("alpha = {}".format(alpha[0]))
         # change weights
-        weights = weightUpdate( pred, y, weights, alpha[i] )
-        print(weights)
-        x, y = newBoostSet( x, y, weights)
+        # weights = weightUpdate( prediction, y, weights, alpha[i] )
+        weights = weights * np.exp(-alpha[i] * y * prediction)
+        weights = weights/weights.sum()
+        # print(weights)
+        # x, y = newBoostSet( x, y, weights)
     #final prediction of alpha[0]*pred(x,tree[0])+ ...
+    pred = predict_example_ensemble(xtest, trees, alpha)
+    error = compute_error(ytest, pred)
+    confusion_matrix(ytest, pred)
+    print('Test Error = {0:4.2f}%.\n'.format(error * 100))
+    # print(1 - compute_error( ytest, pred ))
+    # print("F")
 
 
 def visualize(tree, depth=0):
@@ -479,7 +522,7 @@ if __name__ == '__main__':
     scikit_learn    = 0
     other_data_sets = 0
     bag             = 1
-    boost           = 0
+    boost           = 1
     scikitBag       = 1
     scikitBoost     = 1
     if( learning_curves == 1):
@@ -615,11 +658,24 @@ if __name__ == '__main__':
         testData = np.genfromtxt("data/mushroom.test", missing_values=0, skip_header=0, delimiter=',', dtype=int)
         # trainData = np.delete(trainData, 18, 1)
         # testData = np.delete(testData, 18, 1)
-        depth = 1
-        bag_size = 20
-        boosting( trainData, testData, depth, bag_size)
         #horribly broken
         # main issue is the stump won't change from the first value it picks up
+        depth = 1
+        bag_size = 20
+        print("boosting: depth={}, bag_size={}".format(depth,bag_size))
+        boosting( trainData, testData, depth, bag_size)
+        depth = 1
+        bag_size = 40
+        print("boosting: depth={}, bag_size={}".format(depth,bag_size))
+        boosting( trainData, testData, depth, bag_size)
+        depth = 2
+        bag_size = 20
+        print("boosting: depth={}, bag_size={}".format(depth,bag_size))
+        boosting( trainData, testData, depth, bag_size)
+        depth = 2
+        bag_size = 40
+        print("boosting: depth={}, bag_size={}".format(depth,bag_size))
+        boosting( trainData, testData, depth, bag_size)
 
     if (scikitBag == 1):
         # Load the training data
