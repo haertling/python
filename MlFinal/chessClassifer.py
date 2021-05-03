@@ -11,14 +11,21 @@
 import numpy as np
 import sys
 from sklearn.model_selection import train_test_split
-from sklearn import tree
+
 from sklearn.preprocessing import OrdinalEncoder
 from sklearn import preprocessing
 import graphviz
 from sklearn.ensemble import BaggingClassifier
 from sklearn.ensemble import AdaBoostClassifier
+from sklearn import tree
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import confusion_matrix
 from sklearn.metrics import accuracy_score
+import time
+
+import warnings
+warnings.simplefilter(action='ignore', category=FutureWarning)
 
 
 def processKRKP( ):
@@ -93,26 +100,55 @@ def boosting_dtree_driverKRVKP( x_train, x_test, y_train, y_test ):
             print("true positive  = {} false negative = {}\nfalse positive = {}  true negative = {}".format(tp,fn,fp,tn))
             print("accuracy = {}".format(error))
 
-# def decision_tree_driverKRvK():
-#     #read from file
-#     S = np.genfromtxt("data/krkopt.data", missing_values=0, skip_header=0, delimiter=',', dtype=str)
-#     for i in range(len(S[0])):
-#         values, counts = np.unique (  S[:,i], return_counts=True )
-#         print("i = {}, values = {}, counts = {}\n".format( i, values, counts))
-#     #change str to ints
-#     x, y = processKRK( S )
-#     for i in range(len(x[0])):
-#         values, counts = np.unique (  x[:,i], return_counts=True )
-#         print("i = {}, values = {}, counts = {}\n".format( i, values, counts))
-#     values, counts = np.unique (  y, return_counts=True )
-#     print("i = {}, values = {}, counts = {}\n".format( "y", values, counts))
+def knn_driver_KRVKP( x_train, x_test, y_train, y_test ):
+    weights = ['uniform', 'distance']
+    algorithms = ['ball_tree', 'kd_tree', 'brute']
+    num_of_neighbors = [1, 2, 3, 5, 10, 15, 30]
+    leaf_sizes = [2, 5, 10, 15, 20, 30, 40, 50]
+    for alg in algorithms:
+        for weight in weights:
+            for num_neigh in num_of_neighbors:
+                for leaf in leaf_sizes:
+                    t0 = time.time()
+                    neigh = KNeighborsClassifier( n_neighbors=num_neigh,weights=weight,algorithm=alg,leaf_size=leaf).fit( x_train, y_train )
+                    prediction = neigh.predict( x_test )
+                    tn, fp, fn, tp = confusion_matrix( y_test, prediction ).ravel()
+                    error = accuracy_score( y_test, prediction )
+                    t1 = time.time()
+                    runTime = t1 - t0
+                    print("algorithm = {}, weight = {}, k-nn = {}, leaf = {}, time = {}".format(alg, weight, num_neigh, leaf, runTime))
+                    print("true positive  = {} false negative = {}\nfalse positive = {}  true negative = {}".format(tp,fn,fp,tn))
+                    print("accuracy = {}".format(error))
+
+def logReg_driver_KRVKP( x_train, x_test, y_train, y_test ):
+
+    solvers = ['newton-cg', 'lbfgs', 'liblinear', 'sag', 'saga']
+    Cs = [.001, .01, .1, 1, 10, 100]
+    for solver in solvers:
+        for C in Cs:
+            t0 = time.time()
+            model = LogisticRegression( solver=solver, C=C, max_iter=4000 ).fit( x_train, y_train )
+            prediction = model.predict( x_test )
+            tn, fp, fn, tp = confusion_matrix( y_test, prediction ).ravel()
+            error = accuracy_score( y_test, prediction )
+            t1 = time.time()
+            runTime = t1 - t0
+            
+            print("algorithm = {}, C = {}, time = {}".format(solver, C, runTime))
+            print("true positive  = {} false negative = {}\nfalse positive = {}  true negative = {}".format(tp,fn,fp,tn))
+            print("accuracy = {}\n".format(error))
 
 if __name__ == '__main__':
     # process data into scikit usable form
     x_train, x_test, y_train, y_test = processKRKP()
-    # use data in normal dtree
-    decision_tree_driverKRvKP( x_train, x_test, y_train, y_test )
-    # use data in bagging dtree
-    bagging_dtree_driverKRVKP( x_train, x_test, y_train, y_test )
-    # use data in boosting dtree
-    boosting_dtree_driverKRVKP( x_train, x_test, y_train, y_test )
+    # x_train, x_test, y_train, y_test = processKRKP2()
+    # # use data in normal dtree
+    # decision_tree_driverKRvKP( x_train, x_test, y_train, y_test )
+    # # use data in bagging dtree
+    # bagging_dtree_driverKRVKP( x_train, x_test, y_train, y_test )
+    # # use data in boosting dtree
+    # boosting_dtree_driverKRVKP( x_train, x_test, y_train, y_test )
+    # # use data in knn
+    # knn_driver_KRVKP( x_train, x_test, y_train, y_test )
+    # use data in logistic regression classifier
+    logReg_driver_KRVKP( x_train, x_test, y_train, y_test )
