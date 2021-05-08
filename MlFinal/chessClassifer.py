@@ -17,7 +17,8 @@ from sklearn.ensemble import BaggingClassifier, AdaBoostClassifier
 from sklearn import tree
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import roc_auc_score, roc_curve, auc, accuracy_score, confusion_matrix
+from sklearn.neural_network import MLPClassifier
+from sklearn.metrics import roc_auc_score, roc_curve, auc, accuracy_score, confusion_matrix, plot_confusion_matrix, ConfusionMatrixDisplay
 
 import graphviz
 import sys
@@ -234,6 +235,48 @@ def logReg_driver_KRVKP( x_train, x_test, y_train, y_test ):
         plt.legend(["C = .001", "C = .01", "C = .1", "C = 1", "C = 10", "C = 100"], loc ="lower right")
         plt.savefig("logRegPlots/ROC-Solver-{}.png".format(solver))
 
+def mlp_driver_KRVKP( x_train, x_test, y_train, y_test ):
+    activations = ["identity", "tanh"]
+    sizes = [(2, 2), (5, 2), (10, 2), (2, 5), (2, 10), (10, 10), (50, 2)]
+    colors = ['b','g','r','c','m','y','k']
+    myTuple = ["size", "activation", "tp", "fn", "fp", "tn", "roc_auc_score", "accuracy", "runTime", "classifier"]
+    g_list.append(myTuple)
+
+    for activation in activations:
+        i = 0
+        for size in sizes:
+            t0 = time.time()
+            mlp = MLPClassifier(solver='lbfgs', alpha=1e-5, hidden_layer_sizes=size, random_state=1, activation=activation, max_iter=400).fit( x_train, y_train )
+            prediction = mlp.predict( x_test )
+            tn, fp, fn, tp = confusion_matrix( y_test, prediction ).ravel()
+            error = accuracy_score( y_test, prediction )
+
+            y_score = mlp.predict_proba( x_test )
+            roc_score = roc_auc_score(y_test, y_score[:,1])
+            fpr, tpr, _ = roc_curve(y_test, y_score[:,1])
+            if i == 0:
+                
+                fig1, ax1 = plt.subplots()
+                fig2, ax2 = plt.subplots()
+                ax1.clear()
+                
+            ax1.plot( fpr, tpr, color=colors[i] )
+            plot_confusion_matrix( mlp, x_test, y_test, cmap=plt.cm.Blues, ax=ax2)
+            fig2.show()
+            fig2.savefig("mlpPlots/ConfusionMatrix-{}-{}.png".format(activation, size))
+            ax2.clear()
+            fig2.clear()
+
+            t1 = time.time()
+            runTime = t1 - t0
+            myTuple = [size, activation, tp, fn, fp, tn, roc_score, error, runTime, "mlp"]
+            g_list.append(myTuple)
+            i = i + 1
+        # fig1.legend(["Hidden layer:(2, 2)", "Hidden layer:(5, 2)", "Hidden layer:(10, 2)", "Hidden layer:(2, 5)", "Hidden layer:(2, 10)", "Hidden layer:(10, 10)", "Hidden layer:(50, 2)"], loc ="lower right")
+        fig1.savefig("mlpPlots/ROC-A-{}.png".format( activation))
+        
+        # fig1.show()
+
 if __name__ == '__main__':
     # Decision Trees, Bagging, Boosting, Logistic Regression, KNN
     # process data into scikit usable form
@@ -247,9 +290,11 @@ if __name__ == '__main__':
     # # use data in boosting dtree
     # boosting_dtree_driverKRVKP( x_train, x_test, y_train, y_test )
     # # use data in knn
-    knn_driver_KRVKP( x_train, x_test, y_train, y_test )
-    # # use data in logistic regression classifier
-    # logReg_driver_KRVKP( x_train, x_test, y_train, y_test )
+    # knn_driver_KRVKP( x_train, x_test, y_train, y_test )
+    # use data in logistic regression classifier
+    logReg_driver_KRVKP( x_train, x_test, y_train, y_test )
+    # # use data in Multi-layer Perceptron - Neural Net 
+    # mlp_driver_KRVKP( x_train, x_test, y_train, y_test )
     t1 = time.time()
     runTime = t1 - t0
     print("runTime = {}".format(runTime))
