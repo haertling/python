@@ -37,16 +37,18 @@ def confusionMatrixDriver( classifer, x, y , filename, title ):
     # print(filename)
 
 def init():
-    if not os.path.exists("baggingPlots"):
-        os.makedirs("baggingPlots")
-    if not os.path.exists("boostingPlots"):
-        os.makedirs("boostingPlots")
-    if not os.path.exists("dtreePlots"):
-        os.makedirs("dtreePlots")
-    if not os.path.exists("knnPlots"):
-        os.makedirs("knnPlots")
-    if not os.path.exists("logRegPlots"):
-        os.makedirs("logRegPlots")
+    if not os.path.exists("KRKP/baggingPlots"):
+        os.makedirs("KRKP/baggingPlots")
+    if not os.path.exists("KRKP/boostingPlots"):
+        os.makedirs("KRKP/boostingPlots")
+    if not os.path.exists("KRKP/dtreePlots"):
+        os.makedirs("KRKP/dtreePlots")
+    if not os.path.exists("KRKP/knnPlots"):
+        os.makedirs("KRKP/knnPlots")
+    if not os.path.exists("KRKP/logRegPlots"):
+        os.makedirs("KRKP/logRegPlots")
+    if not os.path.exists("KRKP/mlpPlots"):
+        os.makedirs("KRKP/mlpPlots")
 
 def processKRKP( ):
     # read from file
@@ -69,11 +71,10 @@ def processKRKP( ):
 
 def decision_tree_driverKRvKP( x_train, x_test, y_train, y_test ):
     
-    # run the classifer a bunch with didfferent parameters 
     depths = [1,3,5,10,20,30,40,50]
     features = [1,2,3,4,5,10,15]
     colors = ['b','g','r','c','m','y','k']
-    myTuple = ["depth", "feature", "tp", "fn", "fp", "tn", "roc_auc_score", "accuracy", "runTime", "classifier"]
+    myTuple = ["depth", "feature", "tp", "fn", "fp", "tn", "10-CV accuracy", "10-CV Std Deviation", "roc_auc_score", "accuracy", "runTime", "classifier"]
     g_list.append(myTuple)
     for depth in depths:    
         i = 0
@@ -85,7 +86,10 @@ def decision_tree_driverKRvKP( x_train, x_test, y_train, y_test ):
             tn, fp, fn, tp = confusion_matrix(y_test, prediction).ravel()
             error = accuracy_score( y_test, prediction )
 
-            confusionMatrixDriver( d_tree, x_test, y_test, "dtreePlots/ConfusionMatrix-Depth-{}-features-{}.png".format( depth, feature ), "Depth-{}-features-{}".format( depth, feature ) )
+            scores = cross_val_score( d_tree, x_train, y_train, cv=10 )
+            # print("{0:.2f} accuracy with a standard deviation of {1:.2f}, depth = {2}, # of features = {3}".format( scores.mean(), scores.std(), depth, feature ))#debug
+
+            confusionMatrixDriver( d_tree, x_test, y_test, "KRKP/dtreePlots/ConfusionMatrix-Depth-{}-features-{}.png".format( depth, feature ), "Depth = {}, number of features ={}".format( depth, feature ) )
             y_score = decision_tree.predict_proba( x_test )
             roc_score = roc_auc_score(y_test, y_score[:,1])
             fpr, tpr, _ = roc_curve(y_test, y_score[:,1])
@@ -101,29 +105,30 @@ def decision_tree_driverKRvKP( x_train, x_test, y_train, y_test ):
             myTuple = [depth, feature, tp, fn, fp, tn, roc_score, error, runTime, "dTree"]
             g_list.append(myTuple)
             i = i+1
-            # print("max depth = {}, feature splits = {}, runTime = {}".format(depth, feature, runTime))
-            # print("true positive  = {} false negative = {}\nfalse positive = {}  true negative = {}".format(tp,fn,fp,tn))
-            # print("accuracy = {}".format(error))
         plt.legend(["1 feature split","2 feature split","3 feature split","4 feature split","5 feature split","10 feature split","15 feature split"], loc ="lower right")
-        plt.savefig("dtreePlots/ROC-Depth-{}.png".format(depth))
+        plt.savefig("KRKP/dtreePlots/ROC-Depth-{}.png".format(depth))
 
 def bagging_dtree_driverKRVKP( x_train, x_test, y_train, y_test ):
     depths = [1,3,5,10,20,30,40,50]
     bag_sizes = [1,3,5,10,15,30]
     colors = ['b','g','r','c','m','y','k']
-    myTuple = ["depth", "bag_size", "tp", "fn", "fp", "tn", "roc_auc_score", "accuracy", "runTime", "classifier"]
+    myTuple = ["depth", "bag_size", "tp", "fn", "fp", "tn", "10-CV accuracy", "10-CV Std Deviation", "roc_auc_score", "accuracy", "runTime", "classifier"]
     g_list.append(myTuple)
     for depth in depths:
         i = 0
         for bag_size in bag_sizes:
             t0 = time.time()
-            sBag = BaggingClassifier( base_estimator=tree.DecisionTreeClassifier(max_depth=depth, max_features=1),
-                                      n_estimators=bag_size).fit( x_train, y_train )
+            sBag = BaggingClassifier( base_estimator=tree.DecisionTreeClassifier(max_depth=depth, max_features=1), n_estimators=bag_size )
+            model = sBag
+            sBag.fit( x_train, y_train )
             prediction = sBag.predict(x_test)
             tn, fp, fn, tp = confusion_matrix(y_test, prediction).ravel()
             error = accuracy_score( y_test, prediction )
 
-            confusionMatrixDriver( sBag, x_test, y_test,"baggingPlots/ConfusionMatrix-Depth-{}-BS-{}.png".format( depth, bag_size ), "Depth-{}-BS-{}".format( depth, bag_size ) )
+            scores = cross_val_score( model, x_train, y_train, cv=10 )
+            # print("{0:.2f} accuracy with a standard deviation of {1:.2f}, depth = {2}, bag_size = {3}".format( scores.mean(), scores.std(), depth, bag_size ))#debug
+
+            confusionMatrixDriver( sBag, x_test, y_test,"KRKP/baggingPlots/ConfusionMatrix-Depth-{}-BS-{}.png".format( depth, bag_size ), "Depth = {}, Bag Size = {}".format( depth, bag_size ) )
             y_score = sBag.predict_proba( x_test )
             roc_score = roc_auc_score(y_test, y_score[:,1])
             fpr, tpr, _ = roc_curve(y_test, y_score[:,1])
@@ -136,20 +141,17 @@ def bagging_dtree_driverKRVKP( x_train, x_test, y_train, y_test ):
 
             t1 = time.time()
             runTime = t1 - t0
-            myTuple = [depth, bag_size, tp, fn, fp, tn, roc_score, error, runTime, "bagging"]
+            myTuple = [depth, bag_size, tp, fn, fp, tn, scores.mean(), scores.std(), roc_score, error, runTime, "bagging"]
             g_list.append(myTuple)
             i = i + 1
-            # print("max depth = {}, bag size = {}, runTime = {}".format( depth, bag_size, runTime ))
-            # print("true positive  = {} false negative = {}\nfalse positive = {}  true negative = {}".format(tp,fn,fp,tn))
-            # print("accuracy = {}".format(error))
         plt.legend(["1 bags","3 bags","5 bags","10 bags","15 bags","30 bags"], loc ="lower right")
-        plt.savefig("baggingPlots/ROC-Depth-{}.png".format(depth))
+        plt.savefig("KRKP/baggingPlots/ROC-Depth-{}.png".format(depth))
 
 def boosting_dtree_driverKRVKP( x_train, x_test, y_train, y_test ):
     depths = [1,2]
     n_estimators = [10,20,30,40,50,60]
     colors = ['b','g','r','c','m','y','k']
-    myTuple = ["depth", "bag_size", "tp", "fn", "fp", "tn", "roc_auc_score", "accuracy", "runTime", "classifier"]
+    myTuple = ["depth", "bag_size", "tp", "fn", "fp", "tn", "10-CV accuracy", "10-CV Std Deviation", "roc_auc_score", "accuracy", "runTime", "classifier"]
     g_list.append(myTuple)
     for depth in depths:
         i = 0
@@ -157,12 +159,16 @@ def boosting_dtree_driverKRVKP( x_train, x_test, y_train, y_test ):
             t0 = time.time()
             sBoost = AdaBoostClassifier( base_estimator=tree.DecisionTreeClassifier(max_depth=depth, max_features=1),
                                          n_estimators=n_estimator)
+            model = sBoost
             sBoost.fit(x_train,y_train)
             prediction = sBoost.predict(x_test)
             tn, fp, fn, tp = confusion_matrix(y_test, prediction).ravel()
             error = accuracy_score( y_test, prediction )
 
-            confusionMatrixDriver( sBoost, x_test, y_test,"boostingPlots/ConfusionMatrix-Depth-{}-BS-{}.png".format( depth, n_estimator ))
+            scores = cross_val_score( model, x_train, y_train, cv=10 )
+            # print("{0:.2f} accuracy with a standard deviation of {1:.2f}, depth = {2}, estimators = {3}".format( scores.mean(), scores.std(), depth, n_estimator ))#debug
+
+            confusionMatrixDriver( sBoost, x_test, y_test,"KRKP/boostingPlots/ConfusionMatrix-Depth-{}-BS-{}.png".format( depth, n_estimator ), "Depth = {}, Number of estimators = {}".format( depth, n_estimator ))
             y_score = sBoost.predict_proba( x_test )
             roc_score = roc_auc_score(y_test, y_score[:,1])
             fpr, tpr, _ = roc_curve(y_test, y_score[:,1])
@@ -175,33 +181,35 @@ def boosting_dtree_driverKRVKP( x_train, x_test, y_train, y_test ):
 
             t1 = time.time()
             runTime = t1 - t0
-            myTuple = [depth, n_estimator, tp,fn,fp,tn,error, runTime, "boosting"]
+            myTuple = [depth, n_estimator, tp, fn, fp, tn, scores.mean(), scores.std(), roc_score, error, runTime, "boosting"]
             g_list.append(myTuple)
             i = i + 1
-            # print("max depth = {}, bag size = {}, runTime = {}".format(depth, bag_size, runTime))
-            # print("true positive  = {} false negative = {}\nfalse positive = {}  true negative = {}".format(tp,fn,fp,tn))
-            # print("accuracy = {}".format(error))
         plt.legend(["10 estimators","20 estimators","30 estimators","40 estimators","50 estimators","60 estimators"], loc ="lower right")
-        plt.savefig("boostingPlots/ROC-Depth-{}.png".format(depth))
+        plt.savefig("KRKP/boostingPlots/ROC-Depth-{}.png".format(depth))
 
 def knn_driver_KRVKP( x_train, x_test, y_train, y_test ):
     weights = ['uniform', 'distance']
     algorithms = ['ball_tree', 'kd_tree', 'brute']
     num_of_neighbors = [1, 2, 3, 5, 10, 15, 30]
     colors = ['b','g','r','c','m','y','k']
-    myTuple = ["alg", "weight", "k-neighbors", "tp", "fn", "fp", "tn", "roc_auc_score", "accuracy", "runTime", "classifier"]
+    myTuple = ["alg", "weight", "k-neighbors", "tp", "fn", "fp", "tn", "10-CV accuracy", "10-CV Std Deviation", "roc_auc_score", "accuracy", "runTime", "classifier"]
     g_list.append(myTuple)
     for alg in algorithms:
         for weight in weights:
             i = 0
             for num_neigh in num_of_neighbors:
                 t0 = time.time()
-                neigh = KNeighborsClassifier( n_neighbors=num_neigh,weights=weight,algorithm=alg).fit( x_train, y_train )
+                neigh = KNeighborsClassifier( n_neighbors=num_neigh,weights=weight,algorithm=alg)
+                model = neigh
+                neigh.fit( x_train, y_train )
                 prediction = neigh.predict( x_test )
                 tn, fp, fn, tp = confusion_matrix( y_test, prediction ).ravel()
                 error = accuracy_score( y_test, prediction )
 
-                confusionMatrixDriver( neigh, x_test, y_test, "knnPlots/confusionMatrix-{}-{}-{}.png".format( num_neigh, alg, weight ))
+                scores = cross_val_score( model, x_train, y_train, cv=10 )
+                # print("{0:.2f} accuracy with a standard deviation of {1:.2f}, solver = {2}, weight = {3}, {4}-nn".format( scores.mean(), scores.std(), alg, weight, num_neigh ))#debug
+
+                confusionMatrixDriver( neigh, x_test, y_test, "KRKP/knnPlots/confusionMatrix-{}-{}-{}.png".format( num_neigh, alg, weight ), "alg = {}, weight = {}, neighbors = {}".format( alg, weight, num_neigh ))
                 y_score = neigh.predict_proba( x_test )
                 roc_score = roc_auc_score(y_test, y_score[:,1])
                 fpr, tpr, _ = roc_curve(y_test, y_score[:,1])
@@ -214,22 +222,18 @@ def knn_driver_KRVKP( x_train, x_test, y_train, y_test ):
 
                 t1 = time.time()
                 runTime = t1 - t0
-                myTuple = [alg, weight, num_neigh, tp, fn, fp, tn, roc_score, error, runTime, "knn"]
+                myTuple = [alg, weight, num_neigh, tp, fn, fp, tn, scores.mean(), scores.std(), roc_score, error, runTime, "knn"]
                 g_list.append(myTuple)
                 i = i + 1
-                # print("algorithm = {}, weight = {}, k-nn = {}, time = {}".format(alg, weight, num_neigh, runTime))
-                # print("true positive  = {} false negative = {}\nfalse positive = {}  true negative = {}".format(tp,fn,fp,tn))
-                # print("accuracy = {}".format(error))
             plt.legend(["1-nn", "2-nn", "3-nn", "5-nn", "10-nn", "15-nn", "30-nn"], loc ="lower right")
-            plt.savefig("knnPlots/ROC-{}-{}.png".format(alg, weight))
-                # plt.show()
+            plt.savefig("KRKP/knnPlots/ROC-{}-{}.png".format(alg, weight))
 
 def logReg_driver_KRVKP( x_train, x_test, y_train, y_test ):
 
     solvers = ['newton-cg', 'lbfgs', 'liblinear', 'sag', 'saga']
     Cs = [.001, .01, .1, 1, 10, 100]
     colors = ['b','g','r','c','m','y','k']
-    myTuple = ["solver", "C", "tp", "fn", "fp", "tn", "roc_auc_score", "accuracy", "runTime", "classifier"]
+    myTuple = ["solver", "C", "tp", "fn", "fp", "tn", "10-CV accuracy", "10-CV Std Deviation", "roc_auc_score", "accuracy", "runTime", "classifier"]
     g_list.append(myTuple)
     for solver in solvers:
         i = 0
@@ -243,9 +247,9 @@ def logReg_driver_KRVKP( x_train, x_test, y_train, y_test ):
             error = accuracy_score( y_test, prediction )
 
             scores = cross_val_score( logModel, x_train, y_train, cv=10 )
-            print("{0:.2f} accuracy with a standard deviation of {1:.2f}, solver = {2}, C = {3}".format( scores.mean(), scores.std(), solver, C ))
+            # print("{0:.2f} accuracy with a standard deviation of {1:.2f}, solver = {2}, C = {3}".format( scores.mean(), scores.std(), solver, C ))#debug 
 
-            confusionMatrixDriver( model, x_test, y_test,"logRegPlots/ConfusionMatrix-Solver-{}-C-{}.png".format(solver,C), "Solver-{} C-{}".format(solver,C))
+            confusionMatrixDriver( model, x_test, y_test,"KRKP/logRegPlots/ConfusionMatrix-Solver-{}-C-{}.png".format(solver,C), "Solver-{} C-{}".format(solver,C))
             y_score = model.predict_proba( x_test )
             roc_score = roc_auc_score(y_test, y_score[:,1])
             fpr, tpr, _ = roc_curve(y_test, y_score[:,1])
@@ -258,32 +262,34 @@ def logReg_driver_KRVKP( x_train, x_test, y_train, y_test ):
 
             t1 = time.time()
             runTime = t1 - t0
-            myTuple = [solver, C, tp, fn, fp, tn, roc_score, error, runTime, "log"]
+            myTuple = [solver, C, tp, fn, fp, tn, scores.mean(), scores.std(), roc_score, error, runTime, "log"]
             g_list.append(myTuple)
             i = i + 1
-            # print("algorithm = {}, C = {}, time = {}".format(solver, C, runTime))
-            # print("true positive  = {} false negative = {}\nfalse positive = {}  true negative = {}".format(tp,fn,fp,tn))
-            # print("accuracy = {}\n".format(error))
         plt.legend(["C = .001", "C = .01", "C = .1", "C = 1", "C = 10", "C = 100"], loc ="lower right")
-        plt.savefig("logRegPlots/ROC-Solver-{}.png".format(solver))
+        plt.savefig("KRKP/logRegPlots/ROC-Solver-{}.png".format(solver))
 
 def mlp_driver_KRVKP( x_train, x_test, y_train, y_test ):
     activations = ["identity", "tanh"]
     sizes = [(2, 2), (5, 2), (10, 2), (2, 5), (2, 10), (10, 10), (50, 2)]
     colors = ['b','g','r','c','m','y','k']
-    myTuple = ["size", "activation", "tp", "fn", "fp", "tn", "roc_auc_score", "accuracy", "runTime", "classifier"]
+    myTuple = ["size", "activation", "tp", "fn", "fp", "tn", "10-CV accuracy", "10-CV Std Deviation", "roc_auc_score", "accuracy", "runTime", "classifier"]
     g_list.append(myTuple)
 
     for activation in activations:
         i = 0
         for size in sizes:
             t0 = time.time()
-            mlp = MLPClassifier(solver='lbfgs', alpha=1e-5, hidden_layer_sizes=size, random_state=1, activation=activation, max_iter=400).fit( x_train, y_train )
+            mlp = MLPClassifier(solver='lbfgs', alpha=1e-5, hidden_layer_sizes=size, random_state=1, activation=activation, max_iter=1000)
+            model = mlp
+            mlp.fit( x_train, y_train )
             prediction = mlp.predict( x_test )
             tn, fp, fn, tp = confusion_matrix( y_test, prediction ).ravel()
             error = accuracy_score( y_test, prediction )
 
-            confusionMatrixDriver( mlp, x_test, y_test,"mlpPlots/ConfusionMatrix-{}-{}.png".format(activation, size))
+            scores = cross_val_score( model, x_train, y_train, cv=10 )
+            # print("{0:.2f} accuracy with a standard deviation of {1:.2f}, solver = {2}, C = {3}".format( scores.mean(), scores.std(), activation, size ))#debug 
+
+            confusionMatrixDriver( mlp, x_test, y_test,"KRKP/mlpPlots/ConfusionMatrix-{}-{}-{}.png".format(activation, size[0], size[1] ), "Activation {}, Hidden Layer {}".format(activation, size ))
             y_score = mlp.predict_proba( x_test )
             roc_score = roc_auc_score(y_test, y_score[:,1])
             fpr, tpr, _ = roc_curve(y_test, y_score[:,1])
@@ -296,11 +302,11 @@ def mlp_driver_KRVKP( x_train, x_test, y_train, y_test ):
 
             t1 = time.time()
             runTime = t1 - t0
-            myTuple = [size, activation, tp, fn, fp, tn, roc_score, error, runTime, "mlp"]
+            myTuple = [size, activation, tp, fn, fp, tn, scores.mean(), scores.std(), roc_score, error, runTime, "mlp"]
             g_list.append(myTuple)
             i = i + 1
         plt.legend(["Hidden layer:(2, 2)", "Hidden layer:(5, 2)", "Hidden layer:(10, 2)", "Hidden layer:(2, 5)", "Hidden layer:(2, 10)", "Hidden layer:(10, 10)", "Hidden layer:(50, 2)"], loc ="lower right")
-        plt.savefig("mlpPlots/ROC-A-{}.png".format( activation))
+        plt.savefig("KRKP/mlpPlots/ROC-A-{}.png".format( activation))
 
 
 if __name__ == '__main__':
@@ -308,19 +314,20 @@ if __name__ == '__main__':
     # process data into scikit usable form
     init()
     t0 = time.time()
+    print("0% ~ 200s to go")
     x_train, x_test, y_train, y_test = processKRKP()
-    # # use data in normal dtree
-    # decision_tree_driverKRvKP( x_train, x_test, y_train, y_test )
-    # use data in bagging dtree
-    # bagging_dtree_driverKRVKP( x_train, x_test, y_train, y_test )
-    # use data in boosting dtree
-    # boosting_dtree_driverKRVKP( x_train, x_test, y_train, y_test )
-    # # use data in knn
-    # knn_driver_KRVKP( x_train, x_test, y_train, y_test )
-    # use data in logistic regression classifier
+    decision_tree_driverKRvKP( x_train, x_test, y_train, y_test )
+    print("17%")
+    bagging_dtree_driverKRVKP( x_train, x_test, y_train, y_test )
+    print("34%")
+    boosting_dtree_driverKRVKP( x_train, x_test, y_train, y_test )
+    print("51%")
+    knn_driver_KRVKP( x_train, x_test, y_train, y_test )
+    print("68%")
     logReg_driver_KRVKP( x_train, x_test, y_train, y_test )
-    # # use data in Multi-layer Perceptron - Neural Net 
-    # mlp_driver_KRVKP( x_train, x_test, y_train, y_test )
+    print("85%")
+    mlp_driver_KRVKP( x_train, x_test, y_train, y_test )
+    print("100%")
     t1 = time.time()
     runTime = t1 - t0
     print("runTime = {}".format(runTime))
