@@ -95,7 +95,7 @@ def decision_tree_driverKRvKP( x_train, x_test, y_train, y_test ):
             pr_score = average_precision_score( y_test, prediction )
 
             scores = cross_val_score( d_tree, x_train, y_train, cv=10 )
-            # print("{0:.2f} accuracy with a standard deviation of {1:.2f}, depth = {2}, # of features = {3}".format( scores.mean(), scores.std(), depth, feature ))#debug
+            print("{0:.2f} accuracy with a standard deviation of {1:.2f}, depth = {2}, # of features = {3}".format( scores.mean(), scores.std(), depth, feature ))#debug
 
             confusionMatrixDriver( d_tree, x_test, y_test, "KRKP/dtreePlots/ConfusionMatrix-Depth-{}-features-{}.png".format( depth, feature ), "Depth = {}, number of features ={}".format( depth, feature ) )
             precisionRecallDriver( d_tree, x_test, y_test, "KRKP/dtreePlots/PrecisionRecall-Depth-{}-features-{}.png".format( depth, feature ), "Depth = {}, number of features ={}".format( depth, feature ) )
@@ -139,7 +139,7 @@ def bagging_dtree_driverKRVKP( x_train, x_test, y_train, y_test ):
             pr_score = average_precision_score( y_test, prediction )
 
             scores = cross_val_score( model, x_train, y_train, cv=10 )
-            # print("{0:.2f} accuracy with a standard deviation of {1:.2f}, depth = {2}, bag_size = {3}".format( scores.mean(), scores.std(), depth, bag_size ))#debug
+            print("{0:.2f} accuracy with a standard deviation of {1:.2f}, depth = {2}, bag_size = {3}".format( scores.mean(), scores.std(), depth, bag_size ))#debug
 
             confusionMatrixDriver( sBag, x_test, y_test,"KRKP/baggingPlots/ConfusionMatrix-Depth-{}-BS-{}.png".format( depth, bag_size ), "Depth = {}, Bag Size = {}".format( depth, bag_size ) )
             precisionRecallDriver( sBag, x_test, y_test,"KRKP/baggingPlots/PrecisionRecall-Depth-{}-BS-{}.png".format( depth, bag_size ), "Depth = {}, Bag Size = {}".format( depth, bag_size ) )
@@ -184,7 +184,7 @@ def boosting_dtree_driverKRVKP( x_train, x_test, y_train, y_test ):
             pr_score = average_precision_score( y_test, prediction )
 
             scores = cross_val_score( model, x_train, y_train, cv=10 )
-            # print("{0:.2f} accuracy with a standard deviation of {1:.2f}, depth = {2}, estimators = {3}".format( scores.mean(), scores.std(), depth, n_estimator ))#debug
+            print("{0:.2f} accuracy with a standard deviation of {1:.2f}, depth = {2}, estimators = {3}".format( scores.mean(), scores.std(), depth, n_estimator ))#debug
 
             confusionMatrixDriver( sBoost, x_test, y_test,"KRKP/boostingPlots/ConfusionMatrix-Depth-{}-BS-{}.png".format( depth, n_estimator ), "Depth = {}, Number of estimators = {}".format( depth, n_estimator ))
             precisionRecallDriver( sBoost, x_test, y_test,"KRKP/boostingPlots/PrecisionRecall-Depth-{}-BS-{}.png".format( depth, n_estimator ), "Depth = {}, Number of estimators = {}".format( depth, n_estimator ))
@@ -231,7 +231,7 @@ def knn_driver_KRVKP( x_train, x_test, y_train, y_test ):
                 pr_score = average_precision_score( y_test, prediction )
 
                 scores = cross_val_score( model, x_train, y_train, cv=10 )
-                # print("{0:.2f} accuracy with a standard deviation of {1:.2f}, solver = {2}, weight = {3}, {4}-nn".format( scores.mean(), scores.std(), alg, weight, num_neigh ))#debug
+                print("{0:.2f} accuracy with a standard deviation of {1:.2f}, solver = {2}, weight = {3}, {4}-nn".format( scores.mean(), scores.std(), alg, weight, num_neigh ))#debug
 
                 confusionMatrixDriver( neigh, x_test, y_test, "KRKP/knnPlots/confusionMatrix-{}-{}-{}.png".format( num_neigh, alg, weight ), "alg = {}, weight = {}, neighbors = {}".format( alg, weight, num_neigh ))
                 precisionRecallDriver( neigh, x_test, y_test, "KRKP/knnPlots/PrecisionRecall-{}-{}-{}.png".format( num_neigh, alg, weight ), "alg = {}, weight = {}, neighbors = {}".format( alg, weight, num_neigh ))
@@ -276,7 +276,7 @@ def logReg_driver_KRVKP( x_train, x_test, y_train, y_test ):
             pr_score = average_precision_score( y_test, prediction )
 
             scores = cross_val_score( logModel, x_train, y_train, cv=10 )
-            # print("{0:.2f} accuracy with a standard deviation of {1:.2f}, solver = {2}, C = {3}".format( scores.mean(), scores.std(), solver, C ))#debug 
+            print("{0:.2f} accuracy with a standard deviation of {1:.2f}, solver = {2}, C = {3}".format( scores.mean(), scores.std(), solver, C ))#debug 
 
             confusionMatrixDriver( model, x_test, y_test,"KRKP/logRegPlots/ConfusionMatrix-Solver-{}-C-{}.png".format(solver,C), "Solver-{} C-{}".format(solver,C))
             precisionRecallDriver( model, x_test, y_test,"KRKP/logRegPlots/PrecisionRecall-Solver-{}-C-{}.png".format(solver,C), "Solver-{} C-{}".format(solver,C))
@@ -321,7 +321,7 @@ def mlp_driver_KRVKP( x_train, x_test, y_train, y_test ):
             pr_score = average_precision_score( y_test, prediction )
 
             scores = cross_val_score( model, x_train, y_train, cv=10 )
-            # print("{0:.2f} accuracy with a standard deviation of {1:.2f}, solver = {2}, C = {3}".format( scores.mean(), scores.std(), activation, size ))#debug 
+            print("{0:.2f} accuracy with a standard deviation of {1:.2f}, solver = {2}, C = {3}".format( scores.mean(), scores.std(), activation, size ))#debug 
 
             confusionMatrixDriver( mlp, x_test, y_test,"KRKP/mlpPlots/ConfusionMatrix-{}-{}-{}.png".format(activation, size[0], size[1] ), "Activation {}, Hidden Layer {}".format(activation, size ))
             precisionRecallDriver( mlp, x_test, y_test,"KRKP/mlpPlots/PrecisionRecall-{}-{}-{}.png".format(activation, size[0], size[1] ), "Activation {}, Hidden Layer {}".format(activation, size ))
