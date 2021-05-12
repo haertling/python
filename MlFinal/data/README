@@ -1,0 +1,6 @@
+To run the pre hotshot version that outputs files to KRKP/{classifier}Plots
+python3 chessClassifier.py
+To run the hotshot version that out puts files to HotShot/{classifier}Plots
+python3 hotshot.py
+To run the heart failure data that outputs files to HFP/{classifier}Plots
+python3 heartFailureClassifier.py
